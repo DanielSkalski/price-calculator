@@ -54,6 +54,12 @@ const canAddService = (service: ServiceType, selectedServices: ServiceType[]) =>
     return true;
 }
 
+const deselectAdditionalServicesWithoutRequiredMainService = (selectedServices: ServiceType[]) => 
+    selectedServices
+    .map(s => servicesOffer.find(so => so.serviceType === s))
+    .filter(so => so.type === "MAIN" || containsRequiredService(so, selectedServices))
+    .map(so => so.serviceType);
+
 export const updateSelectedServices = (
     previouslySelectedServices: ServiceType[],
     action: { type: "Select" | "Deselect"; service: ServiceType }
@@ -67,10 +73,7 @@ export const updateSelectedServices = (
             var selectedServices = previouslySelectedServices
                 .filter(x => x !== action.service);
 
-            var finalSelectedServices = selectedServices
-                .map(s => servicesOffer.find(so => so.serviceType === s))
-                .filter(so => so.type === "MAIN" || containsRequiredService(so, selectedServices))
-                .map(so => so.serviceType);
+            var finalSelectedServices = deselectAdditionalServicesWithoutRequiredMainService(selectedServices);
 
             return finalSelectedServices;
         default:
@@ -78,4 +81,141 @@ export const updateSelectedServices = (
     }
 }
 
-export const calculatePrice = (selectedServices: ServiceType[], selectedYear: ServiceYear) => ({ basePrice: 0, finalPrice: 0 });
+type ServicePrice = {
+    serviceType: ServiceType,
+    price: number
+}
+
+type Discount = {
+    service: ServiceType,
+    requiresAny: ServiceType[],
+    amount: number
+}
+
+type PricesOffer = {
+    year: ServiceYear,
+    servicePrices: ServicePrice[],
+    discounts: Discount[]
+}
+
+const yearsPricesOffers: PricesOffer[] = [
+    {
+        year: 2020,
+        servicePrices: [
+            {
+                serviceType: "Photography",
+                price: 1700
+            },
+            {
+                serviceType: "VideoRecording",
+                price: 1700
+            },
+            {
+                serviceType: "WeddingSession",
+                price: 600
+            },
+            {
+                serviceType: "BlurayPackage",
+                price: 300
+            },
+            {
+                serviceType: "TwoDayEvent",
+                price: 400
+            }
+        ],
+        discounts: [
+            {
+                service: "Photography",
+                requiresAny: ["VideoRecording"],
+                amount: 1200
+            }
+        ]
+    },
+    {
+        year: 2021,
+        servicePrices: [
+            {
+                serviceType: "Photography",
+                price: 1800
+            },
+            {
+                serviceType: "VideoRecording",
+                price: 1800
+            },
+            {
+                serviceType: "WeddingSession",
+                price: 600
+            },
+            {
+                serviceType: "BlurayPackage",
+                price: 300
+            },
+            {
+                serviceType: "TwoDayEvent",
+                price: 400
+            }
+        ],
+        discounts: [
+            {
+                service: "Photography",
+                requiresAny: ["VideoRecording"],
+                amount: 1300
+            }
+        ]
+    },
+    {
+        year: 2022,
+        servicePrices: [
+            {
+                serviceType: "Photography",
+                price: 1900
+            },
+            {
+                serviceType: "VideoRecording",
+                price: 1900
+            },
+            {
+                serviceType: "WeddingSession",
+                price: 600
+            },
+            {
+                serviceType: "BlurayPackage",
+                price: 300
+            },
+            {
+                serviceType: "TwoDayEvent",
+                price: 400
+            }
+        ],
+        discounts: [
+            {
+                service: "Photography",
+                requiresAny: ["VideoRecording"],
+                amount: 1300
+            }
+        ]
+    }
+]
+
+const canApplyDiscount = (discount: Discount, selectedServices: ServiceType[]) => {
+    return selectedServices.includes(discount.service) 
+        && selectedServices.some(x => discount.requiresAny.includes(x));
+}
+
+export const calculatePrice = (selectedServices: ServiceType[], selectedYear: ServiceYear) => {
+    var priceList = yearsPricesOffers.find(x => x.year === selectedYear);
+
+    var basePrice = selectedServices
+        .map(s => priceList.servicePrices.find(p => p.serviceType === s).price)
+        .reduce((acc, v) => acc + v, 0);
+
+    var discounts = priceList.discounts.filter(d => canApplyDiscount(d, selectedServices));
+
+    var finalPrice =  basePrice 
+    
+    if (discounts.length > 0)
+        finalPrice -= discounts[0].amount;
+
+    return ({ basePrice, finalPrice });
+}
+
