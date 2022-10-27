@@ -47,7 +47,7 @@ const canAddService = (service: ServiceType, selectedServices: ServiceType[]) =>
     if (selectedServices.includes(service))
         return false;
 
-    const serviceOffer = servicesOffer.find(x => x.serviceType === service);
+    const serviceOffer = servicesOffer.find(so => so.serviceType === service);
     if (serviceOffer.type === "ADDITIONAL") {
         return containsRequiredService(serviceOffer, selectedServices);
     }
@@ -64,7 +64,15 @@ export const updateSelectedServices = (
                 ? [...previouslySelectedServices, action.service]
                 : [...previouslySelectedServices];
         case "Deselect":
-            return previouslySelectedServices.filter(x => x !== action.service);
+            var selectedServices = previouslySelectedServices
+                .filter(x => x !== action.service);
+
+            var finalSelectedServices = selectedServices
+                .map(s => servicesOffer.find(so => so.serviceType === s))
+                .filter(so => so.type === "MAIN" || containsRequiredService(so, selectedServices))
+                .map(so => so.serviceType);
+
+            return finalSelectedServices;
         default:
             return [...previouslySelectedServices];
     }
