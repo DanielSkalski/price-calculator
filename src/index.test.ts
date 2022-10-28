@@ -67,6 +67,13 @@ describe("updateSelectedServices.deselect", () => {
     });
 });
 
+describe("calculatePrice.additionalService", () => {
+    test("should not include price of related when main service is not selected", () => {
+        const result = calculatePrice(["BlurayPackage"], 2020);
+        expect(result).toEqual({ basePrice: 0, finalPrice: 0 });
+    }); 
+});
+
 describe.each([2020, 2021, 2022])("calculatePrice.zero (%i)", (year: ServiceYear) => {
     test("should be zero with no services selected", () => {
         const result = calculatePrice([], year);
