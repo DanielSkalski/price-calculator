@@ -48,31 +48,23 @@ type AdditionalService = {
 }
 
 type ServiceInOffer = MainService | AdditionalService;
+type ServicesOffer = Record<ServiceType, ServiceInOffer>;
 
-const servicesInOffer : ServiceInOffer[] = [
-    {
-        type: "MAIN",
-        serviceType: "Photography"
-    },
-    {
-        type: "MAIN",
-        serviceType: "VideoRecording"
-    },
-    {
-        type: "MAIN",
-        serviceType: "WeddingSession"
-    },
-    {
+const servicesInOffer : ServicesOffer = {
+    "Photography": { type: "MAIN", serviceType: "Photography" },
+    "VideoRecording": { type: "MAIN", serviceType: "VideoRecording" },
+    "WeddingSession": { type: "MAIN", serviceType: "WeddingSession" },
+    "BlurayPackage": {
         type: "ADDITIONAL",
         serviceType: "BlurayPackage",
         requiresAny: ["VideoRecording"]
     },
-    {
+    "TwoDayEvent": {
         type: "ADDITIONAL",
         serviceType: "TwoDayEvent",
         requiresAny: ["Photography", "VideoRecording"]
     }
-];
+}
 
 const containsRequiredService = (service: AdditionalService, selectedServices: ServiceType[]) =>
     selectedServices.some(x => service.requiresAny.includes(x));
@@ -81,7 +73,7 @@ const canAddService = (service: ServiceType, selectedServices: ServiceType[]) =>
     if (selectedServices.includes(service))
         return false;
 
-    const serviceOffer = servicesInOffer.find(so => so.serviceType === service);
+    const serviceOffer = servicesInOffer[service];
     if (serviceOffer.type === "ADDITIONAL") {
         return containsRequiredService(serviceOffer, selectedServices);
     }
@@ -91,14 +83,11 @@ const canAddService = (service: ServiceType, selectedServices: ServiceType[]) =>
 
 const excludeAdditionalServicesWithoutRequiredMainService = (selectedServices: ServiceType[]) => 
     selectedServices
-    .map(s => servicesInOffer.find(so => so.serviceType === s))
+    .map(s => servicesInOffer[s])
     .filter(so => so.type === "MAIN" || containsRequiredService(so, selectedServices))
     .map(so => so.serviceType);
 
-type ServicePrice = {
-    serviceType: ServiceType,
-    price: number
-}
+type ServicePrices = Record<ServiceType, { price: number }>;
 
 type DiscountWhen = {
     with: ServiceType,
@@ -110,37 +99,32 @@ type Discount = {
     when: DiscountWhen[]
 }
 
-type PricesOffer = {
-    year: ServiceYear,
-    servicePrices: ServicePrice[],
+type YearPricesOffer = {
+    servicePrices: ServicePrices,
     discounts: Discount[]
 }
 
-const priceOfferByYear: PricesOffer[] = [
-    {
-        year: 2020,
-        servicePrices: [
-            {
-                serviceType: "Photography",
+type PricesByYear = Record<ServiceYear, YearPricesOffer>;
+
+const pricesByYear: PricesByYear = {
+    2020: {
+        servicePrices: {
+            "Photography": {
                 price: 1700
             },
-            {
-                serviceType: "VideoRecording",
+            "VideoRecording": {
                 price: 1700
             },
-            {
-                serviceType: "WeddingSession",
+            "WeddingSession": {
                 price: 600
             },
-            {
-                serviceType: "BlurayPackage",
+            "BlurayPackage": {
                 price: 300
             },
-            {
-                serviceType: "TwoDayEvent",
+            "TwoDayEvent": {
                 price: 400
             }
-        ],
+        },
         discounts: [
             {
                 onService: "Photography",
@@ -155,30 +139,24 @@ const priceOfferByYear: PricesOffer[] = [
             }
         ]
     },
-    {
-        year: 2021,
-        servicePrices: [
-            {
-                serviceType: "Photography",
+    2021: {
+        servicePrices: {
+            "Photography": {
                 price: 1800
             },
-            {
-                serviceType: "VideoRecording",
+            "VideoRecording": {
                 price: 1800
             },
-            {
-                serviceType: "WeddingSession",
+            "WeddingSession": {
                 price: 600
             },
-            {
-                serviceType: "BlurayPackage",
+            "BlurayPackage": {
                 price: 300
             },
-            {
-                serviceType: "TwoDayEvent",
+            "TwoDayEvent": {
                 price: 400
             }
-        ],
+        },
         discounts: [
             {
                 onService: "Photography",
@@ -193,30 +171,24 @@ const priceOfferByYear: PricesOffer[] = [
             }
         ]
     },
-    {
-        year: 2022,
-        servicePrices: [
-            {
-                serviceType: "Photography",
+    2022: {
+        servicePrices: {
+            "Photography": {
                 price: 1900
             },
-            {
-                serviceType: "VideoRecording",
+            "VideoRecording": {
                 price: 1900
             },
-            {
-                serviceType: "WeddingSession",
+            "WeddingSession": {
                 price: 600
             },
-            {
-                serviceType: "BlurayPackage",
+            "BlurayPackage": {
                 price: 300
             },
-            {
-                serviceType: "TwoDayEvent",
+            "TwoDayEvent": {
                 price: 400
             }
-        ],
+        },
         discounts: [
             {
                 onService: "Photography",
@@ -231,21 +203,21 @@ const priceOfferByYear: PricesOffer[] = [
             }
         ]
     }
-]
+}
 
 const getPricesFor = (year: ServiceYear) => 
-    priceOfferByYear.find(x => x.year === year);
+    pricesByYear[year];
 
 const getServicesForPricing = (services: ServiceType[]) =>
     excludeAdditionalServicesWithoutRequiredMainService(services);
 
-const calculateBasePrice = (prices: PricesOffer, services: ServiceType[]) => 
+const calculateBasePrice = (prices: YearPricesOffer, services: ServiceType[]) => 
     _.sum(services.map(service => getPriceForService(prices, service)));
 
-const getPriceForService = (prices: PricesOffer, service: ServiceType) => 
-    prices.servicePrices.find(p => p.serviceType === service).price;
+const getPriceForService = (prices: YearPricesOffer, service: ServiceType) => 
+    prices.servicePrices[service].price;
 
-const calculateDiscount = (prices: PricesOffer, services: ServiceType[]) => {
+const calculateDiscount = (prices: YearPricesOffer, services: ServiceType[]) => {
     var discounts = prices.discounts
         .filter(d => canApplyDiscount(d, services))
         .map(d => getDiscountAmount(d, services));
