@@ -14,8 +14,12 @@
   "author": "Innergy",
   "devDependencies": {
     "@types/jest": "25.2.3",
+    "@types/lodash": "^4.14.186",
     "jest": "26.0.1",
     "ts-jest": "26.0.0",
     "typescript": "3.9.3"
+  },
+  "dependencies": {
+    "lodash": "^4.17.21"
   }
 }

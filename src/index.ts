@@ -1,3 +1,5 @@
+import _ from 'lodash';
+
 export type ServiceYear = 2020 | 2021 | 2022;
 export type ServiceType = "Photography" | "VideoRecording" | "BlurayPackage" | "TwoDayEvent" | "WeddingSession";
 
@@ -14,7 +16,7 @@ type AdditionalService = {
 
 type ServiceInOffer = MainService | AdditionalService;
 
-const servicesOffer : ServiceInOffer[] = [
+const servicesInOffer : ServiceInOffer[] = [
     {
         type: "MAIN",
         serviceType: "Photography"
@@ -47,7 +49,7 @@ const canAddService = (service: ServiceType, selectedServices: ServiceType[]) =>
     if (selectedServices.includes(service))
         return false;
 
-    const serviceOffer = servicesOffer.find(so => so.serviceType === service);
+    const serviceOffer = servicesInOffer.find(so => so.serviceType === service);
     if (serviceOffer.type === "ADDITIONAL") {
         return containsRequiredService(serviceOffer, selectedServices);
     }
@@ -56,7 +58,7 @@ const canAddService = (service: ServiceType, selectedServices: ServiceType[]) =>
 
 const deselectAdditionalServicesWithoutRequiredMainService = (selectedServices: ServiceType[]) => 
     selectedServices
-    .map(s => servicesOffer.find(so => so.serviceType === s))
+    .map(s => servicesInOffer.find(so => so.serviceType === s))
     .filter(so => so.type === "MAIN" || containsRequiredService(so, selectedServices))
     .map(so => so.serviceType);
 
@@ -86,10 +88,14 @@ type ServicePrice = {
     price: number
 }
 
-type Discount = {
-    service: ServiceType,
-    requiresAny: ServiceType[],
+type DiscountWhen = {
+    with: ServiceType,
     amount: number
+}
+
+type Discount = {
+    onService: ServiceType,
+    when: DiscountWhen[]
 }
 
 type PricesOffer = {
@@ -98,7 +104,7 @@ type PricesOffer = {
     discounts: Discount[]
 }
 
-const yearsPricesOffers: PricesOffer[] = [
+const priceOfferByYear: PricesOffer[] = [
     {
         year: 2020,
         servicePrices: [
@@ -125,9 +131,15 @@ const yearsPricesOffers: PricesOffer[] = [
         ],
         discounts: [
             {
-                service: "Photography",
-                requiresAny: ["VideoRecording"],
-                amount: 1200
+                onService: "Photography",
+                when: [ { with: "VideoRecording", amount: 1200 } ]
+            },
+            {
+                onService: "WeddingSession",
+                when: [
+                    { with: "Photography", amount: 300 },
+                    { with: "VideoRecording", amount: 300 },
+                ]
             }
         ]
     },
@@ -157,9 +169,15 @@ const yearsPricesOffers: PricesOffer[] = [
         ],
         discounts: [
             {
-                service: "Photography",
-                requiresAny: ["VideoRecording"],
-                amount: 1300
+                onService: "Photography",
+                when: [ { with: "VideoRecording", amount: 1300 } ]
+            },
+            {
+                onService: "WeddingSession",
+                when: [
+                    { with: "Photography", amount: 300 },
+                    { with: "VideoRecording", amount: 300 },
+                ]
             }
         ]
     },
@@ -189,33 +207,54 @@ const yearsPricesOffers: PricesOffer[] = [
         ],
         discounts: [
             {
-                service: "Photography",
-                requiresAny: ["VideoRecording"],
-                amount: 1300
+                onService: "Photography",
+                when: [ { with: "VideoRecording", amount: 1300 } ]
+            },
+            {
+                onService: "WeddingSession",
+                when: [
+                    { with: "Photography", amount: 600 },
+                    { with: "VideoRecording", amount: 300 },
+                ]
             }
         ]
     }
 ]
 
-const canApplyDiscount = (discount: Discount, selectedServices: ServiceType[]) => {
-    return selectedServices.includes(discount.service) 
-        && selectedServices.some(x => discount.requiresAny.includes(x));
-}
-
 export const calculatePrice = (selectedServices: ServiceType[], selectedYear: ServiceYear) => {
-    var priceList = yearsPricesOffers.find(x => x.year === selectedYear);
+    var prices = getPricesFor(selectedYear);
 
-    var basePrice = selectedServices
-        .map(s => priceList.servicePrices.find(p => p.serviceType === s).price)
-        .reduce((acc, v) => acc + v, 0);
+    var basePrice = _.sum(selectedServices.map(service => getPriceForService(prices, service)))
 
-    var discounts = priceList.discounts.filter(d => canApplyDiscount(d, selectedServices));
-
-    var finalPrice =  basePrice 
-    
-    if (discounts.length > 0)
-        finalPrice -= discounts[0].amount;
+    const discount = calculateDiscount(prices, selectedServices);
+    const finalPrice = basePrice - discount;
 
     return ({ basePrice, finalPrice });
 }
 
+const getPricesFor = (year: ServiceYear) => 
+    priceOfferByYear.find(x => x.year === year);
+
+const getPriceForService = (prices: PricesOffer, service: ServiceType) => 
+    prices.servicePrices.find(p => p.serviceType === service).price;
+
+const calculateDiscount = (prices: PricesOffer, services: ServiceType[]) => {
+    var discounts = prices.discounts
+        .filter(d => canApplyDiscount(d, services))
+        .map(d => applyDiscount(d, services));
+
+    return _.sum(discounts);
+}
+
+const canApplyDiscount = (discount: Discount, selectedServices: ServiceType[]) => {
+    return selectedServices.includes(discount.onService) 
+        && selectedServices.some(service => discount.when.some(w => w.with == service));
+}
+
+const applyDiscount = (discount: Discount, selectedServices: ServiceType[]) => {
+    const applicableDiscountAmounts = discount.when
+        .filter(d => selectedServices.includes(d.with))
+        .map(d => d.amount);
+
+    return _.max(applicableDiscountAmounts);
+}
