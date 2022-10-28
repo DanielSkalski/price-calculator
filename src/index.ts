@@ -3,6 +3,39 @@ import _ from 'lodash';
 export type ServiceYear = 2020 | 2021 | 2022;
 export type ServiceType = "Photography" | "VideoRecording" | "BlurayPackage" | "TwoDayEvent" | "WeddingSession";
 
+export const updateSelectedServices = (
+    previouslySelectedServices: ServiceType[],
+    action: { type: "Select" | "Deselect"; service: ServiceType }
+) => {
+    switch (action.type){
+        case "Select":
+            return canAddService(action.service, previouslySelectedServices)
+                ? [...previouslySelectedServices, action.service]
+                : [...previouslySelectedServices];
+        case "Deselect":
+            var selectedServices = previouslySelectedServices
+                .filter(x => x !== action.service);
+
+            selectedServices = excludeAdditionalServicesWithoutRequiredMainService(selectedServices);
+
+            return selectedServices;
+        default:
+            return [...previouslySelectedServices];
+    }
+}
+
+export const calculatePrice = (selectedServices: ServiceType[], selectedYear: ServiceYear) => {
+    var prices = getPricesFor(selectedYear);
+    var servicesForPricing = getServicesForPricing(selectedServices);
+
+    var basePrice = calculateBasePrice(prices, servicesForPricing);
+
+    const discount = calculateDiscount(prices, servicesForPricing);
+    const finalPrice = basePrice - discount;
+
+    return ({ basePrice, finalPrice });
+}
+
 type MainService = {
     type: "MAIN",
     serviceType: ServiceType
@@ -61,27 +94,6 @@ const excludeAdditionalServicesWithoutRequiredMainService = (selectedServices: S
     .map(s => servicesInOffer.find(so => so.serviceType === s))
     .filter(so => so.type === "MAIN" || containsRequiredService(so, selectedServices))
     .map(so => so.serviceType);
-
-export const updateSelectedServices = (
-    previouslySelectedServices: ServiceType[],
-    action: { type: "Select" | "Deselect"; service: ServiceType }
-) => {
-    switch (action.type){
-        case "Select":
-            return canAddService(action.service, previouslySelectedServices)
-                ? [...previouslySelectedServices, action.service]
-                : [...previouslySelectedServices];
-        case "Deselect":
-            var selectedServices = previouslySelectedServices
-                .filter(x => x !== action.service);
-
-            selectedServices = excludeAdditionalServicesWithoutRequiredMainService(selectedServices);
-
-            return selectedServices;
-        default:
-            return [...previouslySelectedServices];
-    }
-}
 
 type ServicePrice = {
     serviceType: ServiceType,
@@ -220,18 +232,6 @@ const priceOfferByYear: PricesOffer[] = [
         ]
     }
 ]
-
-export const calculatePrice = (selectedServices: ServiceType[], selectedYear: ServiceYear) => {
-    var prices = getPricesFor(selectedYear);
-    var servicesForPricing = getServicesForPricing(selectedServices);
-
-    var basePrice = calculateBasePrice(prices, servicesForPricing);
-
-    const discount = calculateDiscount(prices, servicesForPricing);
-    const finalPrice = basePrice - discount;
-
-    return ({ basePrice, finalPrice });
-}
 
 const getPricesFor = (year: ServiceYear) => 
     priceOfferByYear.find(x => x.year === year);
